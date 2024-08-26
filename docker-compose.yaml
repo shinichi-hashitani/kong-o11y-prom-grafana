@@ -1,0 +1,112 @@
+# Specify which Kong image to run
+x-kong-image:
+  &kong-image
+  image: ${KONG_DOCKER_IMAGE:-kong:3.7.1}
+
+# Kong database config
+x-kong-db-config:
+  &kong-db-config
+  KONG_DATABASE: postgres
+  KONG_PG_HOST: db
+  KONG_PG_DATABASE: kong
+  KONG_PG_USER: kong
+  KONG_PG_PASSWORD: kong
+  KONG_PASSWORD: password
+
+networks:
+  kong-net:
+    name: kong-net
+    driver: bridge
+  kong-net-internal:
+    name: kong-net-internal
+    driver: bridge
+    internal: true
+
+services:
+  plugins-setup:
+    networks:
+      - kong-net
+    image: curlimages/curl:8.9.1
+    volumes:
+      - ./scripts/:/tmp/scripts/
+    command:
+      - /tmp/scripts/plugins.sh
+    depends_on:
+      kong-gateway:
+        condition: service_healthy
+
+  kong-migrations:
+    <<: *kong-image
+    networks:
+      - kong-net
+    command: "kong migrations bootstrap"
+    environment:
+      <<: [ *kong-db-config ]
+    restart: on-failure
+
+  kong-gateway:
+    <<: [ *kong-image]
+    container_name: kong-gateway
+    deploy:
+      replicas: 1
+    mem_limit: 2g
+    cpus: 1
+    networks:
+      - kong-net
+      - kong-net-internal
+    user: "${KONG_USER:-kong}"
+    ports:
+      - 8000:8000
+      - 8001:8001
+      - 8002:8002
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      <<: [ *kong-db-config ]
+      KONG_PROXY_LISTEN: "0.0.0.0:8000,0.0.0.0:8443 ssl"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_ADMIN_GUI_LISTEN: "0.0.0.0:8002"
+      KONG_LOG_LEVEL: "debug"
+
+  db:
+    networks:
+      - kong-net
+    image: postgres:14-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: kong
+      POSTGRES_PASSWORD: kong
+      POSTGRES_USER: kong
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "kong" ]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+    restart: on-failure
+    stdin_open: true
+    tty: true
+
+  prometheus:
+    networks:
+      - kong-net
+    image: prom/prometheus:v2.53.2
+    container_name: prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ./assets/prometheus/:/etc/prometheus/
+
+  grafana:
+    networks:
+      - kong-net
+    image: grafana/grafana:11.1.4
+    container_name: grafana
+    environment:
+      - "GF_SECURITY_ADMIN_USER=kong"
+      - "GF_SECURITY_ADMIN_PASSWORD=kong"
+      - "GF_USERS_ALLOW_SIGN_UP=false"
+    ports:
+      - 3000:3000
+    volumes:
+      - ./assets/grafana/:/etc/grafana/provisioning/
