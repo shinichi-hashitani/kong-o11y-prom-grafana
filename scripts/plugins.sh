@@ -5,7 +5,7 @@ curl -X POST http://kong-gateway:8001/plugins \
       {
         "name": "prometheus",
         "config": {
-          "per_consumer": true,
+          "per_consumer": false,
           "status_code_metrics": true,
           "latency_metrics": true,
           "bandwidth_metrics": true,
