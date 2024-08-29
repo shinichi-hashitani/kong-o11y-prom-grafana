@@ -1,7 +1,7 @@
 # Specify which Kong image to run
 x-kong-image:
   &kong-image
-  image: ${KONG_DOCKER_IMAGE:-kong:3.7.1}
+  image: ${KONG_DOCKER_IMAGE:-kong/kong-gateway:3.7}
 
 # Kong database config
 x-kong-db-config:
@@ -91,10 +91,8 @@ services:
       - 9090:9090
     volumes:
       - ./assets/prometheus/:/etc/prometheus/
-      - ./data/prometheus/:/prometheus/
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
 
   grafana:
     networks:
