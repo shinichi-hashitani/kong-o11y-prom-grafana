@@ -17,13 +17,17 @@ networks:
   kong-net:
     name: kong-net
     driver: bridge
+  kong-internal:
+    name: kong-internal
+    driver: bridge
+    internal: true
 
 services:
   kong-migrations:
     <<: *kong-image
     container_name: kong-migrations
     networks:
-      - kong-net
+      - kong-internal
     command: "kong migrations bootstrap"
     environment:
       <<: [ *kong-db-config ]
@@ -34,7 +38,7 @@ services:
 
   plugins-setup:
     networks:
-      - kong-net
+      - kong-internal
     image: curlimages/curl:8.9.1
     container_name: plugins-setup
     volumes:
@@ -54,6 +58,7 @@ services:
     cpus: 1
     networks:
       - kong-net
+      - kong-internal
     user: "${KONG_USER:-kong}"
     ports:
      - 8000:8000
@@ -67,11 +72,12 @@ services:
       KONG_PROXY_LISTEN: "0.0.0.0:8000,0.0.0.0:8443 ssl"
       KONG_ADMIN_LISTEN: "0.0.0.0:8001"
       KONG_ADMIN_GUI_LISTEN: "0.0.0.0:8002"
-      KONG_LOG_LEVEL: "debug"
+      KONG_LOG_LEVEL: "warn"
 
   kong-db:
     networks:
       - kong-net
+      - kong-internal
     image: postgres:14-alpine
     container_name: postgres
     environment:
@@ -90,6 +96,7 @@ services:
   prometheus:
     networks:
       - kong-net
+      - kong-internal
     image: prom/prometheus:v2.53.2
     container_name: prometheus
     ports:
@@ -102,6 +109,7 @@ services:
   grafana:
     networks:
       - kong-net
+      - kong-internal
     image: grafana/grafana:11.1.4
     container_name: grafana
     environment:
@@ -112,3 +120,21 @@ services:
       - 3000:3000
     volumes:
       - ./assets/grafana/:/etc/grafana/provisioning/
+
+  httpbin1:
+    networks:
+      - kong-internal
+    image: kong/httpbin:0.1.0
+    container_name: httpbin1
+
+  httpbin2:
+    networks:
+      - kong-internal
+    image: kong/httpbin:0.1.0
+    container_name: httpbin2
+
+  httpbin3:
+    networks:
+      - kong-internal
+    image: kong/httpbin:0.1.0
+    container_name: httpbin3
