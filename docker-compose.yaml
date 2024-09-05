@@ -132,9 +132,3 @@ services:
       - kong-internal
     image: kong/httpbin:0.1.0
     container_name: httpbin2
-
-  httpbin3:
-    networks:
-      - kong-internal
-    image: kong/httpbin:0.1.0
-    container_name: httpbin3
