@@ -1,4 +1,4 @@
-curl -X POST http://kong-gateway:8001/plugins \
+curl -X POST http://kong:8001/plugins \
     --header "accept: application/json" \
     --header "Content-Type: application/json" \
     --data '

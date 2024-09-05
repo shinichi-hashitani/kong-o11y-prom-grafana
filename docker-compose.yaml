@@ -7,7 +7,7 @@ x-kong-image:
 x-kong-db-config:
   &kong-db-config
   KONG_DATABASE: postgres
-  KONG_PG_HOST: db
+  KONG_PG_HOST: kong-db
   KONG_PG_DATABASE: kong
   KONG_PG_USER: kong
   KONG_PG_PASSWORD: kong
@@ -19,30 +19,35 @@ networks:
     driver: bridge
 
 services:
-  plugins-setup:
-    networks:
-      - kong-net
-    image: curlimages/curl:8.9.1
-    volumes:
-      - ./scripts/:/tmp/scripts/
-    command:
-      - /tmp/scripts/plugins.sh
-    depends_on:
-      kong-gateway:
-        condition: service_healthy
-
   kong-migrations:
     <<: *kong-image
+    container_name: kong-migrations
     networks:
       - kong-net
     command: "kong migrations bootstrap"
     environment:
       <<: [ *kong-db-config ]
+    depends_on:
+      kong-db:
+        condition: service_healthy
     restart: on-failure
 
-  kong-gateway:
+  plugins-setup:
+    networks:
+      - kong-net
+    image: curlimages/curl:8.9.1
+    container_name: plugins-setup
+    volumes:
+      - ./scripts/:/tmp/scripts/
+    command:
+      - /tmp/scripts/plugins.sh
+    depends_on:
+      kong:
+        condition: service_healthy
+
+  kong:
     <<: [ *kong-image]
-    container_name: kong-gateway
+    container_name: kong
     deploy:
       replicas: 1
     mem_limit: 2g
@@ -51,12 +56,12 @@ services:
       - kong-net
     user: "${KONG_USER:-kong}"
     ports:
-      - 8000:8000
-      - 8001:8001
-      - 8002:8002
+     - 8000:8000
+     - 8001:8001
+     - 8002:8002
     depends_on:
-      db:
-        condition: service_healthy
+      kong-migrations:
+        condition: service_completed_successfully
     environment:
       <<: [ *kong-db-config ]
       KONG_PROXY_LISTEN: "0.0.0.0:8000,0.0.0.0:8443 ssl"
@@ -64,7 +69,7 @@ services:
       KONG_ADMIN_GUI_LISTEN: "0.0.0.0:8002"
       KONG_LOG_LEVEL: "debug"
 
-  db:
+  kong-db:
     networks:
       - kong-net
     image: postgres:14-alpine
