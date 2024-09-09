@@ -1,0 +1,34 @@
+_format_version: "3.0"
+plugins:
+- config:
+    bandwidth_metrics: true
+    latency_metrics: true
+    per_consumer: false
+    status_code_metrics: true
+    upstream_health_metrics: true
+  enabled: true
+  name: prometheus
+services:
+- enabled: true
+  host: echo.upstream
+  name: echo
+  path: /anything
+  port: 80
+  protocol: http
+  routes:
+  - name: echo
+    paths:
+    - /echo
+upstreams:
+- healthchecks:
+    active:
+      http_path: /anything
+  name: echo.upstream
+  slots: 10000
+  targets:
+  - target: httpbin.org:80
+    weight: 40
+  - target: httpbin1:80
+    weight: 30
+  - target: httpbin2:80
+    weight: 30
