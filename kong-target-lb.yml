@@ -10,20 +10,20 @@ plugins:
   name: prometheus
 services:
 - enabled: true
-  host: echo.upstream
-  name: echo
-  path: /anything
+  host: status.upstream
+  name: status
+  path: /status
   port: 80
   protocol: http
   routes:
-  - name: echo
+  - name: status
     paths:
-    - /echo
+    - /status
 upstreams:
 - healthchecks:
     active:
       http_path: /anything
-  name: echo.upstream
+  name: status.upstream
   slots: 10000
   targets:
   - target: httpbin.org:80
